@@ -15,6 +15,7 @@ params = {
     # 'file_name': '/home/nehla/laser_code//home/nehla/laser_code/StA-Line_scan-long.MP4',
     
     'save_file_name': '/home/nehla/laser_code/save.mkv',
+    'save_bfile_name': '/home/nehla/laser_code/binary-file.mkv',
     'load_path': '',
     'img_ext': 'png',
     'binarize': 1,
@@ -41,6 +42,7 @@ processArguments(sys.argv[1:], params)
 root_dir = params['root_dir']
 file_name = params['file_name']
 save_file_name = params['save_file_name']
+save_bfile_name = params['save_bfile_name']
 load_path = params['load_path']
 img_ext = params['img_ext']
 binarize = params['binarize']
@@ -107,6 +109,7 @@ if not save_file_name:
 
 print('Writing output video to {}'.format(save_file_name))
 out_video = cv2.VideoWriter(save_file_name, fourcc, 20, (width, height))
+out_video_binary = cv2.VideoWriter(save_bfile_name, fourcc, 20, (60, height))
 
 # for image_path in TEST_IMAGE_PATHS:
 if show_img:
@@ -124,7 +127,12 @@ x_list= []
 curr_img_gray = None
 curr_img_lines = None
 curr_img_bbox = None
-
+#img_binaries=None
+buffer_binaries_size=0
+kernel = np.ones((5,5),np.uint8)
+# create an empty 1-channel image
+img_binaries = np.zeros((height,width), np.uint8)
+x=0
 while(cap.isOpened()):
     ret, curr_img = cap.read()
 
@@ -190,25 +198,57 @@ while(cap.isOpened()):
                     center_point_x=centers[1]
                     #print('case 2.b')
             center_point_x=int(center_point_x)
-            cv2.rectangle(curr_img_bbox,(center_point_x-30,start_point_y),(center_point_x+30,int(end_point_y)),(0,0,255),3)
+            cv2.rectangle(curr_img_bbox,(center_point_x-5,start_point_y),(center_point_x+5,int(end_point_y)),(0,0,255),3)
+            #crop binary line
+            #crop_img = img[y:y+h, x:x+w]
+            #binary_line_img=  curr_img_edges[start_point_y:int(end_point_y),center_point_x-30:center_point_x+30]
+            binary_line_img=  curr_img_edges[0:height,center_point_x-5:center_point_x+5]
     elif line_number==1:
-        cv2.rectangle(curr_img_bbox,(int(x_list[0])-30,start_point_y),(int(x_list[0])+30,int(end_point_y)),(0,0,255),3)
-        print('case 3')
-      
+        cv2.rectangle(curr_img_bbox,(int(x_list[0])-5,start_point_y),(int(x_list[0])+5,int(end_point_y)),(0,0,255),3)
+        #crop_img = img[y:y+h, x:x+w]
+        binary_line_img=  curr_img_edges[0:height,int(x_list[0])-5:int(x_list[0])+5]
+        #print('case 3')
+    #dilatation
+    binary_line_img = cv2.dilate(binary_line_img,kernel,iterations = 1)
+    #opening
+    #binary_line_img =cv2.morphologyEx(binary_line_img, cv2.MORPH_OPEN, kernel)
+    # create binaries image
+    h,w =binary_line_img.shape
+    hh,ww =img_binaries.shape
+    print ('height of binary_line_img ', h )
+    print ('height of img_binaries ', hh )
+    if buffer_binaries_size < 150 :
+        buffer_binaries_size+=1
+        img_binaries[0:height,x:x+10] = binary_line_img
+        x+=10
+    if buffer_binaries_size==150 :
+        buffer_binaries_size=0
+        x=0
+        img_binaries = np.zeros((height,width), np.uint8)
+    
     if show_img:
+        #print ('height of img_binaries ', h )
         if resize_factor != 1:
             curr_img = cv2.resize(curr_img, (0, 0), fx=resize_factor, fy=resize_factor)
             curr_img_lines = cv2.resize(curr_img_lines, (0, 0), fx=resize_factor, fy=resize_factor)
             curr_img_bbox = cv2.resize(curr_img_bbox, (0, 0), fx=resize_factor, fy=resize_factor)
             curr_img_edges = cv2.resize(curr_img_edges, (0, 0), fx=resize_factor, fy=resize_factor)
+            binary_line_img = cv2.resize(binary_line_img, (0, 0), fx=resize_factor, fy=resize_factor)
+            #img_binaries = cv2.resize(img_binaries, (0, 0), fx=resize_factor, fy=resize_factor)
 
-        cv2.imshow(seq_name,curr_img)
+        cv2.imshow(seq_name,curr_img_gray)
         cv2.imshow('detected lines',curr_img_lines)
         cv2.imshow('laser line location',curr_img_bbox)
         cv2.imshow('binary',curr_img_edges)
+        cv2.imshow('binary line',binary_line_img)
+        cv2.imshow('binaries',img_binaries)
+        out_video.write(curr_img_bbox)
+        out_video_binary.write(binary_line_img)
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
 if show_img:
     cv2.destroyAllWindows()
 out_video.release()
+out_video_binary.release()

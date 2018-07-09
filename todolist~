@@ -1,0 +1,10 @@
+end_point_y : is not working well
+create the binaries.
+the video is not recording
+
+1. get the center point x by clustering ( 1 cluster)
+2. use a window of size 10 pixels
+3. use the whole height or ( end point max y of lines)? height or original height
+4. create the binaries_image ( fence mask) and recording
+5. apply PCL
+6. ask taylor for waypoints.

@@ -119,136 +119,86 @@ if show_img:
 frame_id = 0
 avg_fps = 0
 _pause = 1
-
-
-line_number=0
-x_list= []
-
+minLineLength = 10
+maxLineGap = height
 curr_img_gray = None
-curr_img_lines = None
-curr_img_bbox = None
-#img_binaries=None
 buffer_binaries_size=0
-kernel = np.ones((5,5),np.uint8)
-# create an empty 1-channel image
 img_binaries = np.zeros((height,width), np.uint8)
-x=0
+top_corner_x=0
 while(cap.isOpened()):
     ret, curr_img = cap.read()
-
+    #initialization
+    x_list= []
+    binary_line_img=np.zeros((height,40), np.uint8)
     curr_img_gray = cv2.cvtColor(curr_img, cv2.COLOR_BGR2GRAY)
     curr_img_lines = np.copy(curr_img)
-    curr_img_bbox = np.copy(curr_img)
-    curr_img_edges = cv2.Canny(curr_img_gray,50,150,apertureSize = 3)
-    minLineLength = 10
-    maxLineGap = height
-    #lines = cv2.HoughLinesP(curr_img_edges,1,np.pi/180,100,minLineLength,maxLineGap)
-    lines = cv2.HoughLinesP(image=curr_img_edges,rho=1,theta=np.pi/180, threshold=100,lines=np.array([]), minLineLength=minLineLength,maxLineGap=maxLineGap)
-    a,b,c = lines.shape
-    line_number=0
-    x_list= []
-    y_list= []
-    center_point_x=0
-    end_point_y=0
-    start_point_y=0
-    for i in range(a):
-        #cv2.line(curr_img_lines,(x1,y1),(x2,y2),(0,255,0),2)
-        #if( c>np.pi/180*170 or c <np.pi/180*10) :
-        angle = math.atan2(lines[i][0][3] -  lines[i][0][1], lines[i][0][2] - lines[i][0][0]) 
-        theta=(angle*180)/np.pi
-        #print('theta: ', theta)
-        
-        if math.fabs(theta)>80 and math.fabs(theta)<100:
-            cv2.line(curr_img_lines, (lines[i][0][0], lines[i][0][1]), (lines[i][0][2], lines[i][0][3]), (0, 0, 255), 3, cv2.LINE_AA)
-            line_number +=1
-            x_list.append((lines[i][0][0]+lines[i][0][2])/2)
-            y_list.append(lines[i][0][3])
-            y_list.append(lines[i][0][1])
-    #print('number of vertical detected lines', line_number)
-    if line_number >0 :
-        y_list = np.array(y_list)
-        end_point_y= int(np.amax(y_list))
-        start_point_y= int(np.amin(y_list))
-    # clustering
-    if line_number>=2:
+    cv2.bilateralFilter(curr_img_gray, 3, 10,10)
+    curr_img_gray = cv2.GaussianBlur(curr_img_gray,(3,3),0)
+    binImg = cv2.adaptiveThreshold(curr_img_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, -3 )
+    #image thresholding
+    #cv2.adaptiveThreshold(src, maxvalue, adaptive method, threshold type, bock size, Constant subtracted from the mean or weighted mean )
+    #binImg = cv2.adaptiveThreshold(curr_img_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, -3 )
+    #ret,binImg = cv2.threshold(curr_img_gray,127,255,cv2.THRESH_BINARY)
+    
+    # line detection
+    lines = cv2.HoughLinesP(image=binImg,rho=1,theta=np.pi/180, threshold=100,lines=np.array([]), minLineLength=minLineLength,maxLineGap=maxLineGap)
+    lines_number=0
+    if lines is not None:
+        a,b,c = lines.shape
+        for i in range(a):
+            angle = math.atan2(lines[i][0][3] -  lines[i][0][1], lines[i][0][2] - lines[i][0][0]) 
+            theta=(angle*180)/np.pi
+
+            if math.fabs(theta)>80 and math.fabs(theta)<100:
+                cv2.line(curr_img_lines, (lines[i][0][0], lines[i][0][1]), (lines[i][0][2], lines[i][0][3]), (0, 0, 255), 3, cv2.LINE_AA)
+                x_list.append((lines[i][0][0]+lines[i][0][2])/2)
+                lines_number +=1
+    #print('number of vertical detected lines', lines_number)
+    if lines_number>0 :
+        # clustering
         x_list = np.array(x_list)
-        x_list = x_list.reshape(line_number,1)
+        x_list = x_list.reshape(lines_number,1)
         x_list = np.float32(x_list)
         # Define criteria = ( type, max_iter = 10 , epsilon = 1.0 )
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         # Set flags (Just to avoid line break in the code)
         flags = cv2.KMEANS_RANDOM_CENTERS
         # Apply KMeans
-        compactness,labels,centers = cv2.kmeans(x_list,2,None,criteria,10,flags)
-        #print('number of cluster centers', centers)
-        # draw a bounding box
-        if centers.size==2:
-            if centers[0] > centers[1]:
-                if (centers[0]-centers[1])<30.0 :
-                    center_point_x= centers[1]+(centers[0]-centers[1])/2
-                    #print('case 1.a')  
-                else :
-                    center_point_x=centers[0]
-                    #print('case 1.b')
-            else :
-                if (centers[1]-centers[0])<30.0 :
-                    center_point_x=centers[0]+(centers[1]-centers[0])/2
-                    #print('case 2.a')
-                else :
-                    center_point_x=centers[1]
-                    #print('case 2.b')
-            center_point_x=int(center_point_x)
-            cv2.rectangle(curr_img_bbox,(center_point_x-30,start_point_y),(center_point_x+30,int(end_point_y)),(0,0,255),3)
-            #crop binary line
-            #crop_img = img[y:y+h, x:x+w]
-            #binary_line_img=  curr_img_edges[start_point_y:int(end_point_y),center_point_x-30:center_point_x+30]
-            binary_line_img=  curr_img_edges[0:height,center_point_x-30:center_point_x+30]
-    elif line_number==1:
-        cv2.rectangle(curr_img_bbox,(int(x_list[0])-30,start_point_y),(int(x_list[0])+30,int(end_point_y)),(0,0,255),3)
-        #crop_img = img[y:y+h, x:x+w]
-        binary_line_img=  curr_img_edges[0:height,int(x_list[0])-30:int(x_list[0])+30]
-        #print('case 3')
-    #dilatation
-    binary_line_img = cv2.dilate(binary_line_img,kernel,iterations = 1)
-    #opening
-    #binary_line_img =cv2.morphologyEx(binary_line_img, cv2.MORPH_OPEN, kernel)
-    # create binaries image
-    h,w =binary_line_img.shape
-    hh,ww =img_binaries.shape
-    print ('height of binary_line_img ', h )
-    print ('height of img_binaries ', hh )
-    if buffer_binaries_size < 20 :
+        compactness,labels,centers = cv2.kmeans(x_list,1,None,criteria,10,flags)
+        #print('print the center point X', centers[0])
+        # line binary image
+        binary_line_img=  binImg[0:height, int(centers[0])-20:int(centers[0])+20]
+
+    # create binary image from binary lines
+    if buffer_binaries_size < int(width/40) :
+        img_binaries[0:height,top_corner_x:top_corner_x+40] = binary_line_img
+        top_corner_x+=40
         buffer_binaries_size+=1
-        img_binaries[0:height,x:x+60] = binary_line_img
-        x+=60
-    if buffer_binaries_size==150 :
-        buffer_binaries_size=0
-        x=0
+    if buffer_binaries_size == int(width/40) :
         img_binaries = np.zeros((height,width), np.uint8)
-    
+        buffer_binaries_size=0
+        top_corner_x=0
+    # show images
     if show_img:
-        #print ('height of img_binaries ', h )
         if resize_factor != 1:
             curr_img = cv2.resize(curr_img, (0, 0), fx=resize_factor, fy=resize_factor)
+            curr_img_gray = cv2.resize(curr_img_gray, (0, 0), fx=resize_factor, fy=resize_factor)
+            binImg = cv2.resize(binImg, (0, 0), fx=resize_factor, fy=resize_factor)
             curr_img_lines = cv2.resize(curr_img_lines, (0, 0), fx=resize_factor, fy=resize_factor)
-            curr_img_bbox = cv2.resize(curr_img_bbox, (0, 0), fx=resize_factor, fy=resize_factor)
-            curr_img_edges = cv2.resize(curr_img_edges, (0, 0), fx=resize_factor, fy=resize_factor)
             binary_line_img = cv2.resize(binary_line_img, (0, 0), fx=resize_factor, fy=resize_factor)
-            #img_binaries = cv2.resize(img_binaries, (0, 0), fx=resize_factor, fy=resize_factor)
 
-        cv2.imshow(seq_name,curr_img_gray)
+        cv2.imshow(seq_name,curr_img)
+        cv2.imshow('video converted to gray',curr_img_gray)
+        cv2.imshow('video converted to binary',binImg)
         cv2.imshow('detected lines',curr_img_lines)
-        cv2.imshow('laser line location',curr_img_bbox)
-        cv2.imshow('binary',curr_img_edges)
-        cv2.imshow('binary line',binary_line_img)
-        cv2.imshow('binaries',img_binaries)
-        out_video.write(curr_img_bbox)
-        out_video_binary.write(binary_line_img)
-
+        cv2.imshow('detected binary line',binary_line_img)
+        cv2.imshow('created binary image',img_binaries)
+        out_video.write(curr_img_gray)
+       
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
 if show_img:
     cv2.destroyAllWindows()
 out_video.release()
-out_video_binary.release()
+
