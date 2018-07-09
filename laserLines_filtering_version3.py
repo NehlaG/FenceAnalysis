@@ -130,6 +130,8 @@ while(cap.isOpened()):
     #initialization
     x_list= []
     binary_line_img=np.zeros((height,40), np.uint8)
+    # resizing
+    curr_img = cv2.resize(curr_img, (0, 0), fx=resize_factor, fy=resize_factor)
     curr_img_gray = cv2.cvtColor(curr_img, cv2.COLOR_BGR2GRAY)
     curr_img_lines = np.copy(curr_img)
     cv2.bilateralFilter(curr_img_gray, 3, 10,10)
@@ -180,12 +182,12 @@ while(cap.isOpened()):
         top_corner_x=0
     # show images
     if show_img:
-        if resize_factor != 1:
-            curr_img = cv2.resize(curr_img, (0, 0), fx=resize_factor, fy=resize_factor)
-            curr_img_gray = cv2.resize(curr_img_gray, (0, 0), fx=resize_factor, fy=resize_factor)
-            binImg = cv2.resize(binImg, (0, 0), fx=resize_factor, fy=resize_factor)
-            curr_img_lines = cv2.resize(curr_img_lines, (0, 0), fx=resize_factor, fy=resize_factor)
-            binary_line_img = cv2.resize(binary_line_img, (0, 0), fx=resize_factor, fy=resize_factor)
+        #if resize_factor != 1:
+            #curr_img = cv2.resize(curr_img, (0, 0), fx=resize_factor, fy=resize_factor)
+            #curr_img_gray = cv2.resize(curr_img_gray, (0, 0), fx=resize_factor, fy=resize_factor)
+            #binImg = cv2.resize(binImg, (0, 0), fx=resize_factor, fy=resize_factor)
+            #curr_img_lines = cv2.resize(curr_img_lines, (0, 0), fx=resize_factor, fy=resize_factor)
+            #binary_line_img = cv2.resize(binary_line_img, (0, 0), fx=resize_factor, fy=resize_factor)
 
         cv2.imshow(seq_name,curr_img)
         cv2.imshow('video converted to gray',curr_img_gray)

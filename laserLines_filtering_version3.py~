@@ -130,6 +130,8 @@ while(cap.isOpened()):
     #initialization
     x_list= []
     binary_line_img=np.zeros((height,40), np.uint8)
+    # resizing
+    curr_img = cv2.resize(curr_img, (0, 0), fx=resize_factor, fy=resize_factor)
     curr_img_gray = cv2.cvtColor(curr_img, cv2.COLOR_BGR2GRAY)
     curr_img_lines = np.copy(curr_img)
     cv2.bilateralFilter(curr_img_gray, 3, 10,10)
