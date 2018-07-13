@@ -1,0 +1,18 @@
+Run scripts :
+
+python3 laserLines_filtering_versionX.py
+
+
+
+Scripts description :
+
+laserLines_filtering_version1.py : vertical lines detection. (tested with Murray Video)
+
+
+laserLines_filtering_version2.py : Green laser line detection using a bounding box. (tested with Murray Video)
+
+
+laserLines_filtering_version3.py : Create fence mask from the green laser video. (tested with Murray Video)
+
+
+laserLines_filtering_version3.py : Create fence mask from the green laser video. The parameters for the hough transform have been tweaked to enable the detection of the laser line  new shape ( tested with airport video).
