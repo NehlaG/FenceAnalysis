@@ -1,0 +1,9 @@
+Run scripts :
+
+Using scikit-learn API for transformation
+python3 pca_training_test.py method=0
+
+
+or 
+Using matrix operations for transformation
+python3 pca_training_test.py method=1
